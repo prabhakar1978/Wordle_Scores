@@ -1,0 +1,383 @@
+---
+title: "Wordle Group Analysis"
+author: "Prabha"
+format: html
+editor: visual
+editor_options:
+  chunk_output_type: console
+---
+
+## Wordle
+
+The group 'New Wordle Group' in WhatsApp is active since Nov 2022 with following participants - Mike, Cindy, Will, Ashley, Prabha.
+
+Since Nov 2023, Shantha and Lundy have been added to the group and this has spurred more postings and conversation in the group. Shantha has been playing Wordle with prabha for a much longer time and the analysis includes that.
+
+This document's objective is to analyze the performance of the players in Wordle :)
+
+```{r label = 'Import_needed_libraries', warning=FALSE }
+
+library (tidyverse)
+library(rvest)
+library(xml2)
+```
+
+```{r label = 'Importing_Whatsapp_Data', warning=FALSE }
+#| echo: false
+
+
+Wordle_Group_Data_txt <- readLines(con = "20240906_Wordle_WhatsApp.txt")
+Family_Talk_Data_txt <- readLines(con = "20240312_FamilyTalk_WhatsApp.txt")
+
+#create tibble with this data as a column
+
+Wordle_Group_Data_df <- tibble(
+                            Wordle_Data_txt = Wordle_Group_Data_txt
+                            ) 
+
+Family_Talk_Data_df <- tibble(
+                            Wordle_Data_txt = Family_Talk_Data_txt
+                            ) 
+
+#Combining the wordle group and Amma Whatsapp chats
+Wordle_Group_Data_df  = rbind(Wordle_Group_Data_df, Family_Talk_Data_df)
+
+```
+
+:
+
+Things to do:
+
+Some data to understand the scoring:
+
+Frequency of playing
+
+Simple measures of average score
+
+-   Non-completion gets a score of 7
+
+Number of wins - individual or shared is ok
+
+Wins
+
+```{r label = 'Some Data Cleaning', warning = FALSE}
+
+
+
+#regex cheat sheet MAGIC!!! - https://github.com/rstudio/cheatsheets/blob/main/regex.pdf 
+
+#Stringr Regex Magic - https://stringr.tidyverse.org/articles/regular-expressions.html
+
+#reg expressions tutorials page - https://en.wikibooks.org/wiki/R_Programming/Text_Processing#Regular_Expressions 
+
+# reGULAR EXPRESSIONS IN r: https://jfjelstul.github.io/regular-expressions-tutorial/
+
+#remove video and image with 'omitted' word
+
+
+Wordle_Group_Data_df = Wordle_Group_Data_df %>% rowwise() %>%
+  #remove media entries in Whatsapp data
+                    mutate(Omitted = str_extract(
+                      string = Wordle_Data_txt,
+                      pattern = "video|image|omitted")
+                    ) %>% 
+                    filter(is.na(Omitted)) %>% 
+                    select(Wordle_Data_txt) %>% 
+                    
+                   #remove Pappu
+                    rowwise() %>% 
+                    mutate(Pappu = str_extract(
+                      string = Wordle_Data_txt,
+                      pattern = "Pappu")
+                    ) %>% 
+                    filter(is.na(Pappu)) %>% 
+                    select(Wordle_Data_txt) %>% 
+
+                    #keep only Wordle lines
+                    rowwise() %>% 
+                    mutate(Wordle_line = str_extract(
+                      string = Wordle_Data_txt,
+                      pattern = "Wordle")
+                    ) %>% 
+                    filter(!is.na(Wordle_line)) %>% 
+                    select(Wordle_Data_txt)
+
+#Extract dates
+
+Wordle_Group_Data_df = Wordle_Group_Data_df %>% rowwise() %>% mutate(Date = str_extract( string = Wordle_Data_txt, pattern = "[0-9]{1,2}[[:punct:]][0-9]{1,2}[[:punct:]][0-9]{2}") %>% lubridate::mdy() ) %>% filter(Date >= lubridate::ymd("2023-01-01"))
+
+
+#Get Last updated Date
+Updated_Date = max(Wordle_Group_Data_df$Date)
+
+#Name List
+
+Name_List = c("Mike", 
+              "Cindy",
+              "Lindy", 
+              "Ashley", 
+              "Prabha", 
+              "Will", 
+              "Shantha",
+              "I C E Amma"
+              )
+
+# Get Wordle number
+Wordle_Group_Data_df = Wordle_Group_Data_df %>% 
+                        rowwise() |> 
+  
+                        #remove ',' from Wordlenumber
+                        mutate(Wordle_Data_txt = str_remove_all(
+                                  string = Wordle_Data_txt, 
+                                  pattern = ","
+                              )
+                        ) |> 
+  
+                          #remove '*' from end of score
+                        mutate(Wordle_Data_txt = str_remove(
+                                  string = Wordle_Data_txt, 
+                                  pattern = "[*]"
+                              )
+                        ) |> 
+
+                        #extract Wordle #
+                        mutate(Wordle_Number = as.numeric(
+                                 str_extract(string = Wordle_Data_txt, 
+                                            pattern = "[0-9]{3,4}"
+                                            )
+                                          )
+                        ) |> 
+                        
+                        #deleting NA's created extracting Wordle Number
+                        na.omit() |> 
+  
+                        mutate(Player_Name = str_extract(
+                                  string = Wordle_Data_txt, 
+                                  pattern = str_c(Name_List, collapse = "|")
+                              )
+                        ) |> 
+  
+                         
+                        #replace Amma with Shantha
+                        mutate(Player_Name = str_replace(
+                                  string = Player_Name, 
+                                  pattern = "I C E Amma", 
+                                  replacement = "Shantha"
+                              )
+                        ) |>
+  
+                      #Get Wordle Score
+                        mutate(Score = str_sub(Wordle_Data_txt, 
+                                start = -3, 
+                                end = -3)
+                              ) |> 
+  
+                      # replace incomplete score 'X' with 7
+                        
+                        mutate(Score = str_replace(
+                                  string = Score, 
+                                  pattern = "X", 
+                                  replacement = "7"
+                              )
+                        ) 
+
+# covert Score to numeric
+Wordle_Group_Data_df$Score = as.numeric(Wordle_Group_Data_df$Score)
+
+                      
+Wordle_Group_Cleaned_Data_df = Wordle_Group_Data_df
+```
+
+```{r label = 'Analysis_01', warning = FALSE}
+
+
+# Simplest measure - Average Score
+Average_Score = Wordle_Group_Cleaned_Data_df %>%
+                  #filter(Wordle_Result_Line == "Yes") %>%
+                  #select(Player_Name, Score, Wordle_Number) %>%
+                  #na.omit() %>%
+                  group_by(Player_Name) %>%
+                  summarize(Mean_Score = mean(Score),
+                  Num_Entries = n_distinct(Wordle_Number)
+                  )
+                  
+
+Average_Score$Player_Name_Mean_Score = paste(Average_Score$Player_Name,
+                                             round(Average_Score$Mean_Score, 2),  
+                                             sep = " - ")
+
+
+
+ggplot(data = Average_Score, 
+       aes(x = Num_Entries, y = Mean_Score, label = Player_Name_Mean_Score)
+       ) + 
+  
+    geom_point(size = 3.5,  color = "purple") + 
+    
+    geom_text(hjust=0, vjust=0, nudge_y = 0.02, 
+              ) + 
+  
+    ylim(min(Average_Score$Mean_Score) * 0.95, max(Average_Score$Mean_Score) * 1.05) + 
+    xlim(0, max(Average_Score$Num_Entries) * 1.2) +
+  
+    theme(
+      panel.grid.major.y = element_line(color = "blue",
+                                          size = 0.5,
+                                          linetype = 2), 
+      panel.grid.minor.y = element_line(color = "blue",
+                                          size = 0.5,
+                                          linetype = 2), 
+      panel.grid.minor.x = element_blank()
+        )
+
+
+# Points for Wins
+
+#coverting to wide df with same Wordle # - Wordle# has to be used rather than Date as Amma can post in India times for same Wordle day/word/contest
+
+#Need to check why duplicates
+
+Wordle_Group_Cleaned_Data_df_wide = Wordle_Group_Cleaned_Data_df %>%    
+                                distinct() %>% 
+                                
+                                 select(Player_Name, Score, Wordle_Number) %>%
+                                 tidyr::pivot_wider(
+                                               names_from = Player_Name,
+                                               values_from = Score, 
+                                               values_fn = {mean}
+                                             )
+
+
+
+Wordle_Group_Cleaned_Data_df_wide$Win_Score = with(Wordle_Group_Cleaned_Data_df_wide, 
+                                              pmin( Ashley,Mike, Prabha, Cindy, Will, Lindy, Shantha, na.rm = T)
+                                              )
+
+
+
+#Win score for ech wordle game by Wordle number
+Wordle_Win_Score = Wordle_Group_Cleaned_Data_df_wide %>% select(Wordle_Number, Win_Score)
+
+
+Wordle_Wins = Wordle_Group_Data_df %>% 
+        select(Player_Name, Score, Wordle_Number)%>% 
+        unique() %>% 
+        left_join(Wordle_Win_Score, by = "Wordle_Number") %>% 
+        rowwise() %>% 
+        mutate(Win = if_else(Score <= Win_Score, 
+                             1, #Win 
+                             0)) %>% 
+        na.omit() |> 
+        arrange(Wordle_Number)
+  
+
+Player_Wins = Wordle_Wins %>%  
+            group_by(Player_Name) %>% 
+            summarize(Total_Wins = sum(Win),
+                      Played = n(), 
+                      Win_Percentage = round(Total_Wins/n()*100, 1)
+            ) %>% 
+            arrange(desc(Win_Percentage))
+
+
+Player_Wins = Player_Wins[order(-Player_Wins$Win_Percentage),]
+
+
+Win_Percentage_plot = ggplot(Player_Wins, aes(x = reorder(Player_Name, - Win_Percentage), 
+                                              y = Win_Percentage)) +
+  geom_bar(stat = "identity", fill = "skyblue", width = 0.5) +  # Create bars
+  labs(title = "Win Percentage", x = "Player", y = "Win Percentage") + 
+  ylim(0,100)+
+  
+  geom_text(aes(label = paste(Win_Percentage, "%", sep = "")), vjust = -0.5, size = 5, color = "brown") +
+    
+    theme(
+      panel.grid.major.y = element_line(color = "blue",
+                                          size = 0.5,
+                                          linetype = 1), 
+      panel.grid.minor.y = element_blank(), 
+      panel.grid.minor.x = element_blank(), 
+      panel.grid.major.x =  element_blank()
+        )
+
+  Win_Percentage_plot 
+```
+
+Points:
+
+Daily win has 1 point. If there are multiple winners, this point is shared equally.
+
+i.e. if there are 2 winners, each winner gets 0.5 points. If there are 3 winners, each winner gets 0.33 points and so on.
+
+```{r label = 'Analysis_02', warning = FALSE}
+Winner_Count = Wordle_Wins %>% 
+      select(Player_Name, Wordle_Number, Win) %>%
+      group_by(Wordle_Number) %>% 
+      summarize(Winner_Count = sum(Win))  
+
+Win_Points = Wordle_Wins %>% 
+      select(Player_Name, Score, Wordle_Number, Win) %>% 
+      
+      left_join(Winner_Count, by = "Wordle_Number") %>% 
+      rowwise() %>% 
+      mutate(Points = Win/Winner_Count) %>% 
+  
+  ungroup() %>% 
+  group_by(Player_Name) %>% 
+  summarise(Total_Points = sum(Points)) %>% 
+  left_join(select(Player_Wins, Player_Name, Played), by = "Player_Name") %>% 
+  mutate(Points_Per_Game = round(Total_Points/Played, 3)) %>% 
+  arrange(desc(Points_Per_Game))
+
+
+Points_plot = ggplot(data = Win_Points, aes(x = reorder(Player_Name, - Points_Per_Game),
+                                            y = Points_Per_Game)) +
+  
+  geom_bar(stat = "identity", fill = "skyblue", width = 0.5) +  # Create bars
+  labs(title = "Points Per Game", x = "Player", y = "Points Per Game") + 
+  ylim(0,0.5) +
+  
+  geom_text(aes(label = Points_Per_Game, vjust = -0.5, size = 5, color = "brown")
+            )+
+    
+    theme(
+      panel.grid.major.y = element_line(color = "blue",
+                                          size = 0.5,
+                                          linetype = 1), 
+      panel.grid.minor.y = element_blank(), 
+      panel.grid.minor.x = element_blank(), 
+      panel.grid.major.x =  element_blank()
+        )
+  
+
+  
+Points_plot
+```
+
+if multiple people win, the points are shared i.e. if 2 people win, each person gets
+
+Daily wins with a bonus point for winner(s)
+
+\`\`\`{r} Wordle History} #Webscrape wordle word list - https://www.fiveforks.com/wordle/ library(rvest)
+
+html \<- read_html("https://www.fiveforks.com/wordle/")
+
+html_list \<- html %\>% html_elements("div")%\>% as.list()
+
+chron_order = html_list\[8\]
+
+chron_order_text = xml_text(chron_order)
+
+chron_order_data = stringr::str_split(chron_order_text, pattern = "\n") %\>% as.list() %\>% unlist()
+
+#chronological order has date in mm/yy/yy format - there is only need to keep these elements in the chracter vector
+
+Chron_Order_df = data.frame( Wordle_Date_Details = chron_order_data ) #creating column/field names names(chron_order_df) = c("Wordle_Answer", "Wordle_Number", "Date") Chron_Order_df$Wordle_Number = stringr::str_extract(string = Chron_Order_df$Wordle_Date_Details, pattern = "\[0-9\]{1,4}" )
+
+Chron_Order_df$Wordle_Date = stringr::str_extract(string = Chron_Order_df$Wordle_Date_Details, pattern = "\[0-9\]{2}\[:punct:\]\[0-9\]{2}\[:punct:\]\[0-9\]{2}" ) #converting date to date value chron_order_df$Date = chron_order_df$Date %\>% lubridate::mdy() \`\`\` Chron_Order_df$Wordle_Date = lubridate::mdy(Chron_Order_df$Wordle_Date)
+
+Chron_Order_df$Wordle_Answer = stringr::str_extract(string = Chron_Order_df$Wordle_Date_Details, pattern = "\[A-Z\]{5}" )
+
+Chron_Order_df = Chron_Order_df %\>% filter(!is.na(Wordle_Date))
+
+\`\`\`
