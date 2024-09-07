@@ -26,7 +26,7 @@ library(xml2)
 #| echo: false
 
 
-Wordle_Group_Data_txt <- readLines(con = "20240906_Wordle_WhatsApp.txt")
+Wordle_Group_Data_txt <- readLines(con = "20240907_Wordle_WhatsApp.txt")
 Family_Talk_Data_txt <- readLines(con = "20240312_FamilyTalk_WhatsApp.txt")
 
 #create tibble with this data as a column
@@ -62,7 +62,7 @@ Wins
 
 ```{r label = 'Some Data Cleaning', warning = FALSE}
 
-
+#| echo: false
 
 #regex cheat sheet MAGIC!!! - https://github.com/rstudio/cheatsheets/blob/main/regex.pdf 
 
@@ -189,7 +189,7 @@ Wordle_Group_Cleaned_Data_df = Wordle_Group_Data_df
 ```
 
 ```{r label = 'Analysis_01', warning = FALSE}
-
+#| echo: false
 
 # Simplest measure - Average Score
 Average_Score = Wordle_Group_Cleaned_Data_df %>%
@@ -310,6 +310,9 @@ Daily win has 1 point. If there are multiple winners, this point is shared equal
 i.e. if there are 2 winners, each winner gets 0.5 points. If there are 3 winners, each winner gets 0.33 points and so on.
 
 ```{r label = 'Analysis_02', warning = FALSE}
+
+#| echo: false
+
 Winner_Count = Wordle_Wins %>% 
       select(Player_Name, Wordle_Number, Win) %>%
       group_by(Wordle_Number) %>% 
@@ -357,27 +360,3 @@ Points_plot
 if multiple people win, the points are shared i.e. if 2 people win, each person gets
 
 Daily wins with a bonus point for winner(s)
-
-\`\`\`{r} Wordle History} #Webscrape wordle word list - https://www.fiveforks.com/wordle/ library(rvest)
-
-html \<- read_html("https://www.fiveforks.com/wordle/")
-
-html_list \<- html %\>% html_elements("div")%\>% as.list()
-
-chron_order = html_list\[8\]
-
-chron_order_text = xml_text(chron_order)
-
-chron_order_data = stringr::str_split(chron_order_text, pattern = "\n") %\>% as.list() %\>% unlist()
-
-#chronological order has date in mm/yy/yy format - there is only need to keep these elements in the chracter vector
-
-Chron_Order_df = data.frame( Wordle_Date_Details = chron_order_data ) #creating column/field names names(chron_order_df) = c("Wordle_Answer", "Wordle_Number", "Date") Chron_Order_df$Wordle_Number = stringr::str_extract(string = Chron_Order_df$Wordle_Date_Details, pattern = "\[0-9\]{1,4}" )
-
-Chron_Order_df$Wordle_Date = stringr::str_extract(string = Chron_Order_df$Wordle_Date_Details, pattern = "\[0-9\]{2}\[:punct:\]\[0-9\]{2}\[:punct:\]\[0-9\]{2}" ) #converting date to date value chron_order_df$Date = chron_order_df$Date %\>% lubridate::mdy() \`\`\` Chron_Order_df$Wordle_Date = lubridate::mdy(Chron_Order_df$Wordle_Date)
-
-Chron_Order_df$Wordle_Answer = stringr::str_extract(string = Chron_Order_df$Wordle_Date_Details, pattern = "\[A-Z\]{5}" )
-
-Chron_Order_df = Chron_Order_df %\>% filter(!is.na(Wordle_Date))
-
-\`\`\`
