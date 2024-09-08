@@ -3,6 +3,8 @@ title: "Wordle Group Analysis"
 author: "Prabha"
 format: html
 editor: visual
+echo: false
+warning: false
 editor_options:
   chunk_output_type: console
 ---
@@ -11,7 +13,7 @@ editor_options:
 
 The group 'New Wordle Group' in WhatsApp is active since Nov 2022 with following participants - Mike, Cindy, Will, Ashley, Prabha.
 
-Since Nov 2023, Shantha and Lundy have been added to the group and this has spurred more postings and conversation in the group. Shantha has been playing Wordle with prabha for a much longer time and the analysis includes that.
+Since Nov 2023, Shantha and Lindy have been added to the group and this has spurred more postings and conversation in the group. Shantha has been playing Wordle with prabha for a much longer time and the analysis includes that.
 
 This document's objective is to analyze the performance of the players in Wordle :)
 
@@ -23,8 +25,6 @@ library(xml2)
 ```
 
 ```{r label = 'Importing_Whatsapp_Data', warning=FALSE }
-#| echo: false
-
 
 Wordle_Group_Data_txt <- readLines(con = "20240907_Wordle_WhatsApp.txt")
 Family_Talk_Data_txt <- readLines(con = "20240312_FamilyTalk_WhatsApp.txt")
